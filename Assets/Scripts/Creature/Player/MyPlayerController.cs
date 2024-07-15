@@ -4,7 +4,7 @@ using Unity.Properties;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-enum MoveState
+enum PlayerMoveState
 {
     Idle,
     Walk,
@@ -12,23 +12,16 @@ enum MoveState
     Sprint,
 }
 
-enum PlayerAnimationLayer
-{
-    Base,
-    Katana,
-
-    EquipAnim,
-}
-
 [RequireComponent(typeof(CharacterController))]
 [RequireComponent(typeof(PlayerInput))]
 public class MyPlayerController : MonoBehaviour
 {
+    private MyPlayerAnimator _playerAnimator;
     private MyPlayerInput _input;
+
     private PlayerInput _playerInput;
     private CharacterController _controller;
     private GameObject _mainCamera;
-    private Animator _animator;
 
     private GameObject _baseCamera;
     private GameObject _lockOnCamera;
@@ -82,8 +75,6 @@ public class MyPlayerController : MonoBehaviour
     public GameObject EquipKatana;
     public GameObject UnEquipKatana;
 
-    int KatanaAnimationLayer = 1;
-
     // cinemachine
     private float _cinemachineTargetYaw;
     private float _cinemachineTargetPitch;
@@ -99,17 +90,17 @@ public class MyPlayerController : MonoBehaviour
     private float _verticalVelocity;
     private float _terminalVelocity = 53f;
 
-    private MoveState _curMoveState
+    private PlayerMoveState _curMoveState
     {
         get
         {
             if (_input.Move == Vector2.zero)
-                return MoveState.Idle;
+                return PlayerMoveState.Idle;
             if (_input.Walk)
-                return MoveState.Walk;
+                return PlayerMoveState.Walk;
             if (_input.Sprint)
-                return MoveState.Sprint;
-            return MoveState.Run;
+                return PlayerMoveState.Sprint;
+            return PlayerMoveState.Run;
         }
     }
     private float _targetSpeed
@@ -119,10 +110,10 @@ public class MyPlayerController : MonoBehaviour
             float ret;
             switch (_curMoveState)
             {
-                case MoveState.Walk:
+                case PlayerMoveState.Walk:
                     ret = WalkMoveSpeed;
                     break;
-                case MoveState.Sprint:
+                case PlayerMoveState.Sprint:
                     ret = SprintMoveSpeed;
                     break;
                 default:
@@ -140,11 +131,11 @@ public class MyPlayerController : MonoBehaviour
         {
             switch (_curMoveState)
             {
-                case MoveState.Walk:
+                case PlayerMoveState.Walk:
                     return 0.33f;
-                case MoveState.Run:
+                case PlayerMoveState.Run:
                     return 0.66f;
-                case MoveState.Sprint:
+                case PlayerMoveState.Sprint:
                     return 1f;
                 default:
                     return 0f;
@@ -158,19 +149,6 @@ public class MyPlayerController : MonoBehaviour
     private float _jumpTimeoutDelta;
     private float _fallTimeoutDelta;
 
-    // animation IDs
-    private int _animIDSpeed;
-    private int _animIDLockOn;
-    private int _animIDInputX;
-    private int _animIDInputY;
-    private int _animIDIsGround;
-    private int _animIDJump;
-    private int _animIDFreeFall;
-    private int _animIDEquip;
-    private int _animIDUnarm;
-    private int _animIDLanding;
-    private int _animIDEquiping;
-
     private bool IsCurrentDeviceMouse
     {
         get
@@ -183,7 +161,6 @@ public class MyPlayerController : MonoBehaviour
         }
     }
 
-    private bool _hasAnimator;
     private void Awake()
     {
         if (_mainCamera == null)
@@ -201,9 +178,7 @@ public class MyPlayerController : MonoBehaviour
         _lockOnCamera = GameObject.FindGameObjectWithTag("LockOnCamera");
         _cinemachineTargetGroup = GameObject.Find("TargetGroup").GetComponent<CinemachineTargetGroup>();
 
-        _hasAnimator = TryGetComponent(out _animator);
-
-        InitAnimationIDs();
+        _playerAnimator = GetComponent<MyPlayerAnimator>();
 
         _input.OnLockOnInput += LockOnInputListner;
         _input.OnAttackInput += AttackInputListner;
@@ -222,21 +197,6 @@ public class MyPlayerController : MonoBehaviour
         ScabbardTarget = Util.FindChild(gameObject, "Scabbard_Target01", true).transform;
         UnarmKatanaTarget = Util.FindChild(gameObject, "katana_Targer01", true).transform;
         WeaponRTarget = Util.FindChild(gameObject, "Weapon_r", true).transform;
-    }
-
-    private void InitAnimationIDs()
-    {
-        _animIDSpeed = Animator.StringToHash("Speed");
-        _animIDLockOn = Animator.StringToHash("LockOn");
-        _animIDInputX = Animator.StringToHash("InputX");
-        _animIDInputY = Animator.StringToHash("InputY");
-        _animIDIsGround = Animator.StringToHash("IsGround");
-        _animIDJump = Animator.StringToHash("Jump");
-        _animIDFreeFall = Animator.StringToHash("FreeFall");
-        _animIDEquip = Animator.StringToHash("Equip");
-        _animIDUnarm = Animator.StringToHash("Unarm");
-        _animIDLanding = Animator.StringToHash("Landing");
-        _animIDEquiping = Animator.StringToHash("Equiping");
     }
 
     private void Update()
@@ -271,19 +231,16 @@ public class MyPlayerController : MonoBehaviour
         if (EquipingWeapon)
             yield break;
         EquipingWeapon = true;
-        if (_hasAnimator)
+        _playerAnimator.SetEquiping(EquipingWeapon);
+        if (EquipWeapon)
         {
-            _animator.SetBool(_animIDEquiping, EquipingWeapon);
-            if (EquipWeapon)
-            {
-                _animator.SetTrigger(_animIDUnarm);
-            }
-            else
-            {
-                _animator.SetTrigger(_animIDEquip);
-            }
+            _playerAnimator.Unarm();
         }
-            
+        else
+        {
+            _playerAnimator.Equip();
+        }
+
         yield return YieldCache.WaitForSeconds(0.5f);
         EquipingWeapon = false;
     }
@@ -294,8 +251,7 @@ public class MyPlayerController : MonoBehaviour
 
         IsGround = Physics.CheckSphere(spherePosition, GroundRadius, GroundLayers, QueryTriggerInteraction.Ignore);
 
-        if (_hasAnimator)
-            _animator.SetBool(_animIDIsGround, IsGround);
+        _playerAnimator.SetGrounded(IsGround);
     }
 
     private void JumpAndGravity()
@@ -305,12 +261,9 @@ public class MyPlayerController : MonoBehaviour
             // fall timeout timer 리셋
             _fallTimeoutDelta = FallTimeout;
 
-            if (_hasAnimator)
-            {
-                _animator.SetBool(_animIDJump, false);
-                _animator.SetBool(_animIDLanding, true);
-                _animator.SetBool(_animIDFreeFall, false);
-            }
+            _playerAnimator.SetJump(false);
+            _playerAnimator.SetLanding(true);
+            _playerAnimator.SetFreeFall(false);
 
             // 땅에 있을 때 수직속도를 제한하며 물리적으로 안정된 상태를 유지하게 함
             if (_verticalVelocity < 0.0f)
@@ -321,10 +274,7 @@ public class MyPlayerController : MonoBehaviour
             // Jump
             if (_input.Jump && _jumpTimeoutDelta <= 0.0f)
             {
-                if (_hasAnimator)
-                {
-                    _animator.SetBool(_animIDJump, true);
-                }
+                _playerAnimator.SetJump(true);
             }
 
             // jump timeout
@@ -346,11 +296,8 @@ public class MyPlayerController : MonoBehaviour
             else
             {
                 // update animator if using character
-                if (_hasAnimator)
-                {
-                    _animator.SetBool(_animIDFreeFall, true);
-                    _animator.SetBool(_animIDLanding, false);
-                }
+                _playerAnimator.SetFreeFall(true);
+                _playerAnimator.SetLanding(false);
             }
 
             _input.Jump = false;
@@ -406,8 +353,7 @@ public class MyPlayerController : MonoBehaviour
         else
             _baseCamera.SetActive(true);
 
-        if (_hasAnimator)
-            _animator.SetBool(_animIDLockOn, _lockOnFlag);
+        _playerAnimator.SetLockOn(_lockOnFlag);
     }
 
     private void Move()
@@ -477,7 +423,7 @@ public class MyPlayerController : MonoBehaviour
 
             float rotation;
             // LockOn상태이고, Sprint가 아닐 때 플레이어가 타겟의 방향을 바라보게 설정
-            if (_lockOnFlag && _curMoveState != MoveState.Sprint)
+            if (_lockOnFlag && _curMoveState != PlayerMoveState.Sprint)
             {
                 // float lockOnTargetDirectionY = 
                 rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, _mainCamera.transform.eulerAngles.y, ref _rotationVelocity, RotationSmoothTime);
@@ -497,12 +443,9 @@ public class MyPlayerController : MonoBehaviour
 
 
         // 애니메이터 업데이트
-        if (_hasAnimator)
-        {
-            _animator.SetFloat(_animIDSpeed, _animationBlendMoveSpeed);
-            _animator.SetFloat(_animIDInputX, _animationBlendInputX);
-            _animator.SetFloat(_animIDInputY, _animationBlendInputY);
-        }
+        _playerAnimator.SetSpeed(_animationBlendMoveSpeed);
+        _playerAnimator.SetInputX(_animationBlendInputX);
+        _playerAnimator.SetInputY(_animationBlendInputY);
     }
 
     private void CameraRotation()
@@ -562,51 +505,33 @@ public class MyPlayerController : MonoBehaviour
     public void OnLanding()
     {
         // 랜딩 후에 Has Exit Time을 하니 애니메이션이 자연스럽게 넘어가지 않아서 만듬
-        _animator.SetBool(_animIDLanding, true);
+        _playerAnimator.SetLanding(true);
     }
 
     public void OnEquipKatana()
     {
         EquipWeapon = true;
-        if (_curMoveState == MoveState.Idle)
-            StartCoroutine(CoSetAnimationLayerWeight(0.5f));
+        if (_curMoveState == PlayerMoveState.Idle)
+            _playerAnimator.SetKatanaAnimayerLayer(EquipWeapon, 0.5f);
         else
-            StartCoroutine(CoSetAnimationLayerWeight(0.1f));
+            _playerAnimator.SetKatanaAnimayerLayer(EquipWeapon, 0.1f);
         SetEquipKatana();
     }
 
     public void OnUnarmKatana()
     {
         EquipWeapon = false;
-        if (_curMoveState == MoveState.Idle)
-            StartCoroutine(CoSetAnimationLayerWeight(0.5f));
+        if (_curMoveState == PlayerMoveState.Idle)
+            _playerAnimator.SetKatanaAnimayerLayer(EquipWeapon, 0.5f);
         else
-            StartCoroutine(CoSetAnimationLayerWeight(0.1f));
+            _playerAnimator.SetKatanaAnimayerLayer(EquipWeapon, 0.1f);
         SetEquipKatana();
-    }
-
-    private IEnumerator CoSetAnimationLayerWeight(float duration)
-    {
-        float curLayerWeight = EquipWeapon ? 0f : 1f;
-        float targetWeight = EquipWeapon ? 1f : 0f;
-        float startWeight = curLayerWeight;
-        float elapsedTime = 0f;
-        while (elapsedTime < duration)
-        {
-            elapsedTime += Time.deltaTime;
-            curLayerWeight = Mathf.Lerp(startWeight, targetWeight, elapsedTime / duration);
-            _animator.SetLayerWeight(KatanaAnimationLayer, curLayerWeight);
-            yield return null;
-        }
-        if (_hasAnimator)
-            _animator.SetLayerWeight(KatanaAnimationLayer, targetWeight);
     }
 
     private void SetEquipKatana()
     {
         EquipKatana.SetActive(EquipWeapon);
         UnEquipKatana.SetActive(!EquipWeapon);
-        if (_hasAnimator)
-            _animator.SetBool(_animIDEquiping, false);
+        _playerAnimator.SetEquiping(false);
     }
 }

@@ -38,7 +38,7 @@ public class BlendTreeCopierWindow : EditorWindow
             return;
         }
 
-        var originalBlendTree = FindBlendTree(sourceController, originalBlendTreeName);
+        var originalBlendTree = FindBlendTree(sourceController, originalBlendTreeName,layerIndex);
         if (originalBlendTree == null)
         {
             Debug.LogError("원본 블렌드 트리를 찾을 수 없습니다.");
@@ -58,16 +58,14 @@ public class BlendTreeCopierWindow : EditorWindow
         Debug.Log("블렌드 트리 복사가 완료되었습니다.");
     }
 
-    private BlendTree FindBlendTree(AnimatorController controller, string blendTreeName)
+    private BlendTree FindBlendTree(AnimatorController controller, string blendTreeName, int layerIndex)
     {
-        foreach (var layer in controller.layers)
+        var layer = controller.layers[layerIndex];
+        foreach (var state in layer.stateMachine.states)
         {
-            foreach (var state in layer.stateMachine.states)
+            if (state.state.motion is BlendTree blendTree && blendTree.name == blendTreeName)
             {
-                if (state.state.motion is BlendTree blendTree && blendTree.name == blendTreeName)
-                {
-                    return blendTree;
-                }
+                return blendTree;
             }
         }
         return null;
@@ -89,11 +87,20 @@ public class BlendTreeCopierWindow : EditorWindow
                     name = childBlendTree.name
                 };
                 CopyBlendTreeSettings(childBlendTree, newChildBlendTree);
-                copy.AddChild(newChildBlendTree, child.threshold);
+
+                copy.AddChild(newChildBlendTree);
             }
             else
             {
-                copy.AddChild(child.motion, child.threshold);
+                ChildMotion newMotion = new();
+                newMotion.motion = child.motion;
+                newMotion.threshold = child.threshold;
+                newMotion.position = child.position;
+
+                if (copy.blendType == BlendTreeType.Simple1D)
+                    copy.AddChild(newMotion.motion, newMotion.threshold);
+                else if (copy.blendType != BlendTreeType.Direct)
+                    copy.AddChild(newMotion.motion, newMotion.position);
             }
         }
     }
