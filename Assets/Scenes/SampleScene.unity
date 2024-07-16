@@ -3182,9 +3182,12 @@ GameObject:
   - component: {fileID: 343678344}
   - component: {fileID: 343678345}
   - component: {fileID: 343678347}
-  - component: {fileID: 343678346}
   - component: {fileID: 343678348}
+  - component: {fileID: 343678346}
+  - component: {fileID: 343678350}
+  - component: {fileID: 343678352}
   - component: {fileID: 343678349}
+  - component: {fileID: 343678351}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -3246,11 +3249,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 430f7816b8ff2634f92b9f78a5c503bd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Move: {x: 0, y: 0}
-  Look: {x: 0, y: 0}
-  Jump: 0
-  Sprint: 0
-  Walk: 0
   _cursorLocked: 1
   _cursorInputForLook: 1
 --- !u!114 &343678347
@@ -3295,23 +3293,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: df32d16811bd1eb4581226a308d0c7f3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  WalkMoveSpeed: 2
-  RunMoveSpeed: 5.335
-  SprintMoveSpeed: 7.888
-  RotationSmoothTime: 0.05
-  SpeedChangeRate: 10
-  DecelerationChangeRate: 5
-  Gravity: -15
-  JumpHeight: 1.6
-  JumpTimeout: 0.5
-  FallTimeout: 0.15
   LockOnMaxDistance: 20
-  IsGround: 1
-  GroundOffset: -0.1
-  GroundRadius: 0.33
-  GroundLayers:
-    serializedVersion: 2
-    m_Bits: 1024
   CinemachineCameraTarget: {fileID: 413255234}
   TopClamp: 70
   BottomClamp: -20
@@ -3339,7 +3321,7 @@ Animator:
   m_Controller: {fileID: 9100000, guid: bf4bb909c12a26d41b454239299c7a1e, type: 2}
   m_CullingMode: 0
   m_UpdateMode: 0
-  m_ApplyRootMotion: 1
+  m_ApplyRootMotion: 0
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
   m_AnimatePhysics: 0
@@ -3348,6 +3330,53 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &343678350
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 343678342}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4f4817b7edc2bc942b60bbc8c6fe4fc3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &343678351
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 343678342}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9c256085d1c0e744381114b335126894, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _verticalVelocity: 0
+--- !u!114 &343678352
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 343678342}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7828490a72b5eec42b48eddfdb4378d5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  WalkMoveSpeed: 2
+  RunMoveSpeed: 5.335
+  SprintMoveSpeed: 7.888
+  RotationSmoothTime: 0.12
+  AccelerationRate: 10
+  DecelerationChangeRate: 5
+  JumpHeight: 1.2
+  JumpTimeout: 0.5
+  FallTimeout: 0.15
+  _lockOnFlag: 0
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0

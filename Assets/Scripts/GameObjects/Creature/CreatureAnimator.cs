@@ -11,7 +11,7 @@ public class CreatureAnimator : MonoBehaviour , IMyAnimator
 {
     protected Animator _animator;
     protected Dictionary<string,int> _animIDDict;
-    protected virtual void Start()
+    public virtual void Init()
     {
         _animator = GetComponent<Animator>();
         _animIDDict = new();
