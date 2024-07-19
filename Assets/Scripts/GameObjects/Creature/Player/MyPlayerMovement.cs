@@ -46,6 +46,7 @@ public class MyPlayerMovement : MonoBehaviour
     private float _animationBlendInputY;
     private float _targetRotation = 0f;
     public bool _lockOnFlag;
+    public bool _equipWeaponFlag;
     private bool _isGround;
 
     private float _fallTimeoutDelta;
@@ -146,6 +147,8 @@ public class MyPlayerMovement : MonoBehaviour
     {
         JumpAndFall();
         Move();
+        UpdateAnimationParameter();
+        UpdateCharacterRotation();
     }
 
     private void JumpAndFall()
@@ -219,6 +222,15 @@ public class MyPlayerMovement : MonoBehaviour
         else
             _curMoveSpeed = targetSpeed;
 
+        Vector3 targetDirection = Quaternion.Euler(0f, _targetRotation, 0f) * Vector3.forward;
+
+        // Character Controller를 이용한 이동
+        _characterController.Move(targetDirection.normalized * (_curMoveSpeed * Time.deltaTime)+
+            new Vector3(0f, _gravityAndGround._verticalVelocity, 0f) * Time.deltaTime);
+    }
+
+    private void UpdateAnimationParameter()
+    {
         // 애니메이터의 블렌딩 스피드 설정
         if (_animationBlendMoveSpeed <= _targetMotionSpeed)
             _animationBlendMoveSpeed = Mathf.Lerp(_animationBlendMoveSpeed, _targetMotionSpeed, Time.deltaTime * AccelerationRate);
@@ -237,22 +249,27 @@ public class MyPlayerMovement : MonoBehaviour
         if (Mathf.Abs(_animationBlendInputY) < 0.01f)
             _animationBlendInputY = 0f;
 
-        Vector3 inputDirection = new Vector3(_moveInput.x, 0f, _moveInput.y).normalized;
+        // 애니메이터 업데이트
+        OnMoveAnimation?.Invoke(_animationBlendMoveSpeed, _animationBlendInputX, _animationBlendInputY);
+    }
 
+    private void UpdateCharacterRotation()
+    {
         // Vector2의 != 연산자는 근사치 비교를 사용하기 때문에, 부동 소수점 연산에서 발생하는 작은
         // 오차의 영향을 받지 않는다. 또한 두 벡터의 크기를 비교하는 연산보다 연산 비용이 적게 든다.
         // 이동 입력이 있을 때 플레이어를 회전시킨다
         if (_moveInput != Vector2.zero)
         {
+            Vector3 inputDirection = new Vector3(_moveInput.x, 0f, _moveInput.y).normalized;
+
             // 플레이어가 이동하고자 하는 방향을 inputDirection과 Camera의 방향을 통해 계산
             _targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg +
                 _mainCamera.transform.eulerAngles.y;
 
             float rotation;
-            // LockOn상태이고, Sprint가 아닐 때 플레이어가 타겟의 방향을 바라보게 설정
-            if (_lockOnFlag && _curMoveState != PlayerMoveState.Sprint)
+            // LockOn, 무기를 equip한 상태, Sprint상태가 아닐 때 캐릭터는 카메라의 방향을 바라본다.
+            if (_lockOnFlag && _equipWeaponFlag && _curMoveState != PlayerMoveState.Sprint)
             {
-                // float lockOnTargetDirectionY = 
                 rotation = Mathf.SmoothDampAngle(transform.eulerAngles.y, _mainCamera.transform.eulerAngles.y, ref _rotationVelocity, RotationSmoothTime);
             }
             // LockOn이 아닐 때 이동방향을 바라보게 설정
@@ -261,15 +278,6 @@ public class MyPlayerMovement : MonoBehaviour
 
             transform.rotation = Quaternion.Euler(0f, rotation, 0f);
         }
-
-        Vector3 targetDirection = Quaternion.Euler(0f, _targetRotation, 0f) * Vector3.forward;
-
-        // Character Controller를 이용한 이동
-        _characterController.Move(targetDirection.normalized * (_curMoveSpeed * Time.deltaTime) +
-            new Vector3(0f, _gravityAndGround._verticalVelocity, 0f) * Time.deltaTime);
-
-        // 애니메이터 업데이트
-        OnMoveAnimation?.Invoke(_animationBlendMoveSpeed, _animationBlendInputX, _animationBlendInputY);
     }
 
     public void OnJumpImpact()

@@ -3,7 +3,6 @@ using UnityEngine;
 
 public class MyPlayerAnimator : CreatureAnimator
 {
-    int _katanaAnimationLayer = 1;
     public override void InitAnimID()
     {
         base.InitAnimID();
@@ -18,6 +17,7 @@ public class MyPlayerAnimator : CreatureAnimator
         AddAnimationID("Unarm");
         AddAnimationID("Landing");
         AddAnimationID("Equiping");
+        AddAnimationID("OnKatana");
     }
 
     public void SetGrounded(bool value)
@@ -65,6 +65,11 @@ public class MyPlayerAnimator : CreatureAnimator
         SetBool("Equiping", value);
     }
 
+    public void SetOnKatana(bool value)
+    {
+        SetBool("OnKatana", value);
+    }
+
     public void Equip()
     {
         SetTrigger("Equip");
@@ -73,26 +78,5 @@ public class MyPlayerAnimator : CreatureAnimator
     public void Unarm()
     {
         SetTrigger("Unarm");
-    }
-
-    public void SetKatanaAnimayerLayer(bool equipWeapon, float value)
-    {
-        StartCoroutine(CoSetKatanaAnimationLayerWeight(equipWeapon, value));
-    }
-
-    public IEnumerator CoSetKatanaAnimationLayerWeight(bool equipWeapon, float duration)
-    {
-        float curLayerWeight = equipWeapon ? 0f : 1f;
-        float targetWeight = equipWeapon ? 1f : 0f;
-        float startWeight = curLayerWeight;
-        float elapsedTime = 0f;
-        while (elapsedTime < duration)
-        {
-            elapsedTime += Time.deltaTime;
-            curLayerWeight = Mathf.Lerp(startWeight, targetWeight, elapsedTime / duration);
-            SetLayerWeight(_katanaAnimationLayer, curLayerWeight);
-            yield return null;
-        }
-        SetLayerWeight(_katanaAnimationLayer, curLayerWeight);
     }
 }

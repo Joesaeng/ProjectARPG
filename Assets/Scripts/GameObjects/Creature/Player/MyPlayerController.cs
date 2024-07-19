@@ -12,30 +12,9 @@ public class MyPlayerController : MonoBehaviour
     private MyPlayerAnimator _playerAnimator;
     private MyPlayerInput _input;
     private MyPlayerMovement _playerMovement;
+    private CameraController _cameraController;
 
-    private PlayerInput _playerInput;
     private GameObject _mainCamera;
-
-    private GameObject _baseCamera;
-    private GameObject _lockOnCamera;
-
-    private GameObject _lockOnTarget;
-    private CinemachineTargetGroup _cinemachineTargetGroup;
-
-    public float LockOnMaxDistance = 20f;
-
-    [Header("Cinemachine")]
-    public GameObject CinemachineCameraTarget;
-    public float TopClamp = 70f;
-    public float BottomClamp = -20f;
-    public float CameraAngleOverride = 0f;
-    public bool LockCameraPosition = false;
-
-    [Header("Cinemachine 카메라 이동 속도")]
-    [Tooltip("Vertical Speed")]
-    public float YawSpeed = 1f;
-    [Tooltip("Horizontal Speed")]
-    public float PitchSpeed = 1f;
 
     [Header("PlayerWeapon")]
     public Transform ScabbardTarget;
@@ -47,27 +26,10 @@ public class MyPlayerController : MonoBehaviour
     public GameObject EquipKatana;
     public GameObject UnEquipKatana;
 
-    // cinemachine
-    private float _cinemachineTargetYaw;
-    private float _cinemachineTargetPitch;
-    private readonly float _threshold = 0.01f;
-
     private bool _lockOnFlag = false;
+
     private Action<bool> OnLockOnChanged;
-
-    private Vector2 _lookVector;
-
-    private bool IsCurrentDeviceMouse
-    {
-        get
-        {
-#if ENABLE_INPUT_SYSTEM
-            return _playerInput.currentControlScheme == "KeyboardMouse";
-#else
-				return false;
-#endif
-        }
-    }
+    private Action<bool> OnEquipWeaponChanged;
 
     private void Awake()
     {
@@ -77,36 +39,51 @@ public class MyPlayerController : MonoBehaviour
 
     private void Start()
     {
-        _cinemachineTargetYaw = CinemachineCameraTarget.transform.rotation.eulerAngles.y;
-
         _input = GetComponent<MyPlayerInput>();
-        _playerInput = GetComponent<PlayerInput>();
-        _baseCamera = GameObject.FindGameObjectWithTag("BaseCamera");
-        _lockOnCamera = GameObject.FindGameObjectWithTag("LockOnCamera");
-        _cinemachineTargetGroup = GameObject.Find("TargetGroup").GetComponent<CinemachineTargetGroup>();
 
-        _playerAnimator = GetComponent<MyPlayerAnimator>();
-        _playerAnimator.Init();
-        _playerMovement = GetComponent<MyPlayerMovement>();
+        AnimatorInit();
+        MovementInit();
+        CameraControllerInit();
 
-        _input.OnLockOnInput += HandleLockOn;
         _input.OnAttackInput += HandleAttack;
         _input.OnUnarmInput += HandleUnarm;
-        _input.OnLookInput += (vec) => _lookVector = vec; 
 
-        _playerMovement.Init(_mainCamera);
-        MovementInit(_input);
         InitWeaponTargets();
 
         // TEMP
         SetEquipKatana();
-        SetCamera(false);
-        _lockOnTarget = GameObject.Find("Target");
     }
 
-    private void MovementInit(MyPlayerInput input)
+    private void OnDestroy()
     {
-        _playerMovement.InitInputHandler(input);
+        OnLockOnChanged = null;
+        OnEquipWeaponChanged = null;
+    }
+
+    private void AnimatorInit()
+    {
+        _playerAnimator = GetComponent<MyPlayerAnimator>();
+        _playerAnimator.Init();
+    }
+
+    private void CameraControllerInit()
+    {
+        _cameraController = GetComponent<CameraController>();
+        _cameraController.Init(_input, _mainCamera);
+        _cameraController.OnLockOnTarget += (lockOn) =>
+        {
+            _lockOnFlag = lockOn;
+            OnLockOnChanged?.Invoke(_lockOnFlag);
+            _playerAnimator.SetLockOn(_lockOnFlag);
+        };
+    }
+
+    private void MovementInit()
+    {
+        _playerMovement = GetComponent<MyPlayerMovement>();
+        _playerMovement.Init(_mainCamera);
+        _playerMovement.InitInputHandler(_input);
+
         _playerMovement.OnGroundedAnimation += () =>
         {
             _playerAnimator.SetJump(false);
@@ -123,7 +100,7 @@ public class MyPlayerController : MonoBehaviour
             _playerAnimator.SetLanding(false);
         };
 
-        _playerMovement.OnMoveAnimation += (speed,inputX,inputY) =>
+        _playerMovement.OnMoveAnimation += (speed, inputX, inputY) =>
         {
             _playerAnimator.SetSpeed(speed);
             _playerAnimator.SetInputX(inputX);
@@ -132,6 +109,7 @@ public class MyPlayerController : MonoBehaviour
 
         _playerMovement.OnGrounded += (value) => _playerAnimator.SetGrounded(value);
         OnLockOnChanged += (value) => _playerMovement._lockOnFlag = value;
+        OnEquipWeaponChanged += (value) => _playerMovement._equipWeaponFlag = value;
     }
 
     private void InitWeaponTargets()
@@ -144,13 +122,6 @@ public class MyPlayerController : MonoBehaviour
     private void Update()
     {
         _playerMovement.OnUpdate();
-
-        CheckDistanceBetweenLockOnTarget();
-    }
-
-    private void LateUpdate()
-    {
-        CameraRotation();
     }
 
     private void HandleAttack()
@@ -185,83 +156,7 @@ public class MyPlayerController : MonoBehaviour
         EquipingWeapon = false;
     }
 
-    private void HandleLockOn()
-    {
-        // TODO
-        // TEMP
-        SetLockOn(!_lockOnFlag);
-    }
-
-    private void SetLockOn(bool lockOnFlag)
-    {
-        _lockOnFlag = lockOnFlag;
-        OnLockOnChanged?.Invoke(_lockOnFlag);
-        if (_lockOnFlag)
-        {
-            _cinemachineTargetGroup.AddMember(_lockOnTarget.transform, 0.9f, 1f);
-        }
-        else
-        {
-            _cinemachineTargetGroup.RemoveMember(_lockOnTarget.transform);
-        }
-        SetCamera(_lockOnFlag);
-    }
-
-    private void CheckDistanceBetweenLockOnTarget()
-    {
-        if (!_lockOnFlag || _lockOnTarget == null)
-            return;
-
-        if (Vector3.Distance(transform.position, _lockOnTarget.transform.position) > LockOnMaxDistance)
-        {
-            SetLockOn(false);
-        }
-    }
-
-    private void SetCamera(bool lockOnFlag)
-    {
-        _baseCamera.SetActive(false);
-        _lockOnCamera.SetActive(false);
-
-        if (lockOnFlag)
-            _lockOnCamera.SetActive(true);
-        else
-            _baseCamera.SetActive(true);
-
-        _playerAnimator.SetLockOn(_lockOnFlag);
-    }
-
-    private void CameraRotation()
-    {
-        // 입력이 있고 카메라 위치가 고정되지 않은 경우
-        if (_lookVector.sqrMagnitude >= _threshold && !LockCameraPosition)
-        {
-            // 마우스를 이용할 때는 deltaTime을 곱하지 않는다
-            float deltaTimeMultiplier = IsCurrentDeviceMouse ? 1.0f : Time.deltaTime;
-
-            _cinemachineTargetYaw += _lookVector.x * deltaTimeMultiplier * YawSpeed;
-            _cinemachineTargetPitch += _lookVector.y * deltaTimeMultiplier * PitchSpeed;
-        }
-
-        // 카메라 이동 반경 제한
-        _cinemachineTargetYaw = ClampAngle(_cinemachineTargetYaw, float.MinValue, float.MaxValue);
-        _cinemachineTargetPitch = ClampAngle(_cinemachineTargetPitch, BottomClamp, TopClamp);
-
-        CinemachineCameraTarget.transform.rotation = Quaternion.Euler(_cinemachineTargetPitch + CameraAngleOverride,
-                _cinemachineTargetYaw, 0.0f);
-    }
-
-    private static float ClampAngle(float lfAngle, float lfMin, float lfMax)
-    {
-        if (lfAngle < -360f)
-            lfAngle += 360f;
-        if (lfAngle > 360f)
-            lfAngle -= 360f;
-        return Mathf.Clamp(lfAngle, lfMin, lfMax);
-    }
-
     // 애니메이션 이벤트
-    
 
     public void OnLanding()
     {
@@ -272,20 +167,12 @@ public class MyPlayerController : MonoBehaviour
     public void OnEquipKatana()
     {
         EquipWeapon = true;
-        if (_playerMovement.CurMoveState == PlayerMoveState.Idle)
-            _playerAnimator.SetKatanaAnimayerLayer(EquipWeapon, 0.5f);
-        else
-            _playerAnimator.SetKatanaAnimayerLayer(EquipWeapon, 0.1f);
         SetEquipKatana();
     }
 
     public void OnUnarmKatana()
     {
         EquipWeapon = false;
-        if (_playerMovement.CurMoveState == PlayerMoveState.Idle)
-            _playerAnimator.SetKatanaAnimayerLayer(EquipWeapon, 0.5f);
-        else
-            _playerAnimator.SetKatanaAnimayerLayer(EquipWeapon, 0.1f);
         SetEquipKatana();
     }
 
@@ -293,6 +180,8 @@ public class MyPlayerController : MonoBehaviour
     {
         EquipKatana.SetActive(EquipWeapon);
         UnEquipKatana.SetActive(!EquipWeapon);
+        _playerAnimator.SetOnKatana(EquipWeapon);
         _playerAnimator.SetEquiping(false);
+        OnEquipWeaponChanged?.Invoke(EquipWeapon);
     }
 }

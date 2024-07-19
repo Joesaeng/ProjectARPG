@@ -43,21 +43,21 @@ public class CharacterControllerGroundChecker : GroundChecker
         return Physics.CheckSphere(spherePosition, _sphereRadius, GroundLayers, QueryTriggerInteraction.Ignore);
     }
 
-    private void OnDrawGizmosSelected()
-    {
-        Color transparentGreen = new Color(0.0f, 1.0f, 0.0f, 0.35f);
-        Color transparentRed = new Color(1.0f, 0.0f, 0.0f, 0.35f);
+    //private void OnDrawGizmosSelected()
+    //{
+    //    Color transparentGreen = new Color(0.0f, 1.0f, 0.0f, 0.35f);
+    //    Color transparentRed = new Color(1.0f, 0.0f, 0.0f, 0.35f);
 
-        if (IsGrounded())
-            Gizmos.color = transparentGreen;
-        else
-            Gizmos.color = transparentRed;
+    //    if (IsGrounded())
+    //        Gizmos.color = transparentGreen;
+    //    else
+    //        Gizmos.color = transparentRed;
 
-        // when selected, draw a gizmo in the position of, and matching radius of, the grounded collider
-        Gizmos.DrawSphere(
-            new Vector3(transform.position.x, transform.position.y, transform.position.z),
-            _sphereRadius);
-    }
+    //    // when selected, draw a gizmo in the position of, and matching radius of, the grounded collider
+    //    Gizmos.DrawSphere(
+    //        new Vector3(transform.position.x, transform.position.y, transform.position.z),
+    //        _sphereRadius);
+    //}
 
 }
 
